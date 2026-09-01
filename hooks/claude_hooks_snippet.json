@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/shark/SHARK_AI_MNG/scripts/aictx.py build-context --project $(basename \"$CLAUDE_PROJECT_DIR\")"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/shark/SHARK_AI_MNG/scripts/extract_session.py $(basename \"$CLAUDE_PROJECT_DIR\")"
+          }
+        ]
+      }
+    ]
+  }
+}
