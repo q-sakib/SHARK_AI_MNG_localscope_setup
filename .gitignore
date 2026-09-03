@@ -2,3 +2,10 @@ __pycache__/
 *.pyc
 *.bak-*
 *.invalid-*.bak
+indexes/ai.db
+ai/logs/
+ai/cache/
+ai/evaluations/results/
+projects/*/node_modules/
+projects/*/.env
+projects/*/.env.local

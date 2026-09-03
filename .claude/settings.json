@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/shark/SHARK_AI_MNG_localscope_setup/ && echo \"---\" && ls -la /Users/shark/ | grep -E \"ai-|claude|shark|SHARK|ollama|caveman\" 2>/dev/null)",
+      "Read(//Users/shark/**)",
+      "Bash(ollama list *)"
+    ]
+  }
+}
