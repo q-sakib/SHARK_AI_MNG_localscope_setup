@@ -1,0 +1,27 @@
+{
+  "summary": "**Automated review — PR #XXXX**\n\nSummary of findings. Replace with the real review. Non-blocking items marked 🔵/🟡.",
+  "findings": [
+    {
+      "severity": "blocker",
+      "path": "backend/app/Services/FooService.php",
+      "line": 88,
+      "anchor": "to",
+      "title": "Unbounded query / N+1",
+      "body": "This loops over `$orders` and lazy-loads `->machine` each iteration → N+1. Eager load with `->with('machine')` and paginate; unbounded `all()` will not scale."
+    },
+    {
+      "severity": "major",
+      "path": "frontend-sap/src/app/modules/foo/foo.component.ts",
+      "line": 42,
+      "title": "OData used for new endpoint",
+      "body": "New data fetched via OData. Project rule: custom REST only via `CommonService` with `isLodata=false`. Move this to a `routes/api.php` endpoint + API Resource."
+    },
+    {
+      "severity": "minor",
+      "path": "backend/database/migrations/2026_07_14_000000_add_status_to_orders.php",
+      "line": 17,
+      "title": "Missing index + magic default",
+      "body": "`status` is filtered in WHERE but not indexed — add `$table->index('status')`. Also the default `'ACTIVE'` is a magic string; reference `OrderStatusEnum::ACTIVE->value`."
+    }
+  ]
+}

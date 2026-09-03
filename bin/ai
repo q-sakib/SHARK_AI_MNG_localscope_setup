@@ -17,6 +17,24 @@ case "$cmd" in
     echo "AI Claude Workflow Kit ${VERSION}"
     ;;
 
+  env)
+    echo "SHARK AI MNG — Environment"
+    echo "────────────────────────────────────────"
+    ENV_FILE="${SHARK_DIR}/.env"
+    EXAMPLE_FILE="${SHARK_DIR}/.env.example"
+    if [[ -f "$ENV_FILE" ]]; then
+      ok ".env exists"
+      echo
+      echo "Set variables (values hidden):"
+      grep -v '^#' "$ENV_FILE" | grep -v '^[[:space:]]*$' | sed 's/=.*/=***/' || true
+    else
+      warn ".env not found — copy from ${EXAMPLE_FILE}"
+    fi
+    echo
+    echo "Edit: ${ENV_FILE}"
+    echo "Template: ${EXAMPLE_FILE}"
+    ;;
+
   doctor)
     echo "SHARK AI MNG ENVIRONMENT"
     echo "────────────────────────────────────────"
@@ -76,7 +94,7 @@ case "$cmd" in
     shift || true
     command -v caveman >/dev/null 2>&1 || { warn "caveman not installed. Run: bootstrap.sh"; exit 1; }
     mode="${1:-compress}"
-    log "Compressing via caveman (${CAVEMAN_MODEL:-qwen2.5-coder:1.5b})..."
+    log "Compressing via caveman (${CAVEMAN_MODEL:-qwen2.5-coder:14b})..."
     caveman "$mode"
     ;;
 
@@ -95,8 +113,20 @@ case "$cmd" in
     target="${SHARK_DIR}/projects/${name}"
     mkdir -p "${target}/.claude" "${target}/docs/architecture" \
       "${target}/docs/decisions" "${target}/docs/api" \
-      "${target}/docs/database" "${target}/docs/security"
-    copy_if_missing "${CLAUDE_DIR}/ai/workflows/project-CLAUDE.template.md" "${target}/CLAUDE.md" 2>/dev/null || true
+      "${target}/docs/database" "${target}/docs/security" \
+      "${target}/scripts"
+    TMPL="${SHARK_DIR}/ai/workflows/project-CLAUDE.template.md"
+    if [[ ! -f "${target}/CLAUDE.md" ]]; then
+      if [[ -f "$TMPL" ]]; then
+        cp "$TMPL" "${target}/CLAUDE.md"
+        ok "Created ${target}/CLAUDE.md from template"
+      else
+        printf '# %s\n\n## Stack\n\n## Key Rules\n' "$name" > "${target}/CLAUDE.md"
+        ok "Created ${target}/CLAUDE.md (blank)"
+      fi
+    else
+      warn "Keeping existing ${target}/CLAUDE.md"
+    fi
     touch "${target}/PROJECT_CONTEXT.md" "${target}/ARCHITECTURE.md" "${target}/PROGRESS.md"
     ok "AI project initialized: ${target}"
     echo "  cd ${target} && claude"
@@ -173,6 +203,7 @@ case "$cmd" in
 SHARK AI MNG — ai helper
 
 Usage:
+  ai env                 Show/check environment variables (.env)
   ai doctor              Check AI environment (tools, Claude dirs, Ollama)
   ai status              Show Claude workspace status
   ai models              List Ollama models

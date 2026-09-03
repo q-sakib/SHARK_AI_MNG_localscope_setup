@@ -55,6 +55,14 @@ log "SHARK AI MNG Bootstrap v${VERSION}"
 [[ "$(uname -s)" == "Darwin" ]] || warn "Optimized for macOS. Continuing anyway."
 cmd_exists brew || die "Homebrew required: https://brew.sh"
 
+# ── 0. .env setup ────────────────────────────────────────────────────────────
+if [[ ! -f "${SCRIPT_DIR}/.env" ]]; then
+  cp "${SCRIPT_DIR}/.env.example" "${SCRIPT_DIR}/.env"
+  warn ".env created from .env.example — fill in your credentials: ${SCRIPT_DIR}/.env"
+else
+  ok ".env exists"
+fi
+
 # ── 1. CLI tools ──────────────────────────────────────────────────────────────
 log "Installing CLI tools..."
 for tool in jq yq ripgrep fd fzf bat eza git-delta just shellcheck; do
@@ -74,8 +82,8 @@ if cmd_exists ollama; then
   log "Ollama: $(ollama --version 2>/dev/null || echo 'installed')"
   log "Installed models:"
   ollama list 2>/dev/null || true
-  if ! ollama list 2>/dev/null | grep -q 'qwen2.5-coder:1.5b'; then
-    warn "qwen2.5-coder:1.5b not found. Run: ollama pull qwen2.5-coder:1.5b"
+  if ! ollama list 2>/dev/null | grep -q 'qwen2.5-coder:14b'; then
+    warn "qwen2.5-coder:14b not found. Run: ollama pull qwen2.5-coder:14b"
   fi
 else
   warn "Ollama not installed. caveman uses mechanical fallback. Install: https://ollama.com"
@@ -160,12 +168,42 @@ cat > "$PROJECT_SETTINGS" <<'JSON'
 JSON
 ok "Updated project .claude/settings.json"
 
-# ── 7. projects/ dir ──────────────────────────────────────────────────────────
+# ── 7. projects/ + sessions/ dirs ────────────────────────────────────────────
 mkdir -p "${SCRIPT_DIR}/projects"
 [[ -f "${SCRIPT_DIR}/projects/.gitkeep" ]] || touch "${SCRIPT_DIR}/projects/.gitkeep"
 ok "projects/ directory ready"
 
-# ── 8. Validate ───────────────────────────────────────────────────────────────
+mkdir -p "${SCRIPT_DIR}/sessions"
+[[ -f "${SCRIPT_DIR}/sessions/.gitkeep" ]] || touch "${SCRIPT_DIR}/sessions/.gitkeep"
+ok "sessions/ directory ready"
+
+# ── 8. AICTX database ────────────────────────────────────────────────────────
+if cmd_exists python3; then
+  log "Initializing AICTX SQLite database..."
+  cd "${SCRIPT_DIR}/scripts" && python3 install.py && cd "${SCRIPT_DIR}"
+else
+  warn "python3 not found — AICTX database not initialized. Install Python 3 and re-run."
+fi
+
+# ── 9. Wire AICTX hooks into ~/.claude/settings.json ─────────────────────────
+log "Wiring AICTX hooks into Claude settings..."
+if cmd_exists python3; then
+  cd "${SCRIPT_DIR}/scripts" && python3 merge_hooks.py \
+    --settings-path "${CLAUDE_DIR}/settings.json" \
+    --snippet-path "${SCRIPT_DIR}/hooks/claude_hooks_snippet.json" && cd "${SCRIPT_DIR}"
+else
+  warn "python3 not found — hooks not wired. Run manually after installing Python 3."
+fi
+
+# ── 10. direnv (optional) ─────────────────────────────────────────────────────
+if cmd_exists direnv; then
+  log "direnv found — run 'direnv allow' in ${SCRIPT_DIR} to auto-load .env"
+else
+  warn "direnv not installed. Install with: brew install direnv"
+  warn "Until then, manually run: source ${SCRIPT_DIR}/.env"
+fi
+
+# ── 11. Validate ──────────────────────────────────────────────────────────────
 log ""
 log "VALIDATION"
 for x in caveman ai claude ollama jq rg fd fzf; do
@@ -183,17 +221,24 @@ Tools:       ${BIN_DIR}/caveman
 Claude dirs (symlinked):
              ${CLAUDE_DIR}/skills/
              ${CLAUDE_DIR}/agents/
-             ${CLAUDE_DIR}/commands/   ← /cpres available in Claude Code
+             ${CLAUDE_DIR}/commands/   ← /cpres available
              ${CLAUDE_DIR}/hooks/
 
-Projects:    ${SCRIPT_DIR}/projects/  ← all new projects go here
+Projects:    ${SCRIPT_DIR}/projects/  ← new projects go here
+Sessions:    ${SCRIPT_DIR}/sessions/  ← AICTX session transcripts
+
+Credentials: ${SCRIPT_DIR}/.env       ← fill in your tokens/keys
+             ${SCRIPT_DIR}/.env.example ← always updated template
 
 Next:
   1. source ~/.zshrc
-  2. ai doctor
-  3. ai status
-  4. claude                           ← type /cpres to compress context
-  5. echo "long text" | caveman       ← compress from terminal
-  6. ai run qwen2.5-coder:14b         ← local heavy reasoning
+  2. Fill in ${SCRIPT_DIR}/.env with your credentials
+  3. direnv allow                     (if direnv is installed)
+     OR: source ${SCRIPT_DIR}/.env
+  4. ai doctor
+  5. ai status
+  6. claude                           ← type /cpres to compress context
+  7. echo "long text" | caveman       ← compress from terminal
+  8. ai project myapp                 ← creates projects/myapp/
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF

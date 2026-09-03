@@ -1,11 +1,98 @@
-__pycache__/
-*.pyc
-*.bak-*
-*.invalid-*.bak
-indexes/ai.db
+# ─── Credentials & Secrets ────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+# Keep the template:
+!.env.example
+
+# Key files
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Credential files
+credentials.json
+credentials.yml
+credentials.yaml
+secrets.json
+secrets.yml
+secrets.yaml
+*-credentials.json
+*-secret.json
+*-key.json
+service-account*.json
+gcloud-*.json
+firebase-adminsdk*.json
+.npmrc
+.netrc
+auth.json
+token.json
+
+# ─── AI / Ollama cache ────────────────────────────────────────────────────────
 ai/logs/
 ai/cache/
 ai/evaluations/results/
+ai/backups/
+
+# ─── AICTX database (rebuilt from sessions) ──────────────────────────────────
+indexes/ai.db
+indexes/*.db-shm
+indexes/*.db-wal
+
+# ─── Session transcripts (can contain sensitive context) ─────────────────────
+sessions/*.json
+sessions/*.jsonl
+sessions/*.log
+sessions/*.txt
+
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+
+# ─── Node ─────────────────────────────────────────────────────────────────────
+node_modules/
+.pnp/
+.yarn/cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Project workspaces ───────────────────────────────────────────────────────
 projects/*/node_modules/
 projects/*/.env
 projects/*/.env.local
+projects/*/.env.production
+projects/*/.env.staging
+projects/*/dist/
+projects/*/build/
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─── Backup artifacts ─────────────────────────────────────────────────────────
+*.bak-*
+*.invalid-*.bak
+*.bak
+
+# ─── Obsidian internal ────────────────────────────────────────────────────────
+obsidian/.obsidian/workspace.json
+obsidian/.obsidian/workspace-mobile.json
