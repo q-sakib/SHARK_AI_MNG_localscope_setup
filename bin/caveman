@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# caveman — prompt/text compression via local Ollama (qwen2.5-coder)
+# Usage:
+#   echo "long text" | caveman
+#   caveman compress < file.txt
+#   caveman -m summarize < file.txt
+#   caveman -M qwen2.5-coder:1.5b-base < file.txt
+set -euo pipefail
+
+# Default: 14b for proper instruction following.
+# Override with CAVEMAN_MODEL env or -M flag.
+OLLAMA_MODEL="${CAVEMAN_MODEL:-qwen2.5-coder:14b}"
+MODE="compress"
+RATIO="0.35"
+
+usage() {
+  cat <<'EOF'
+caveman — compress prompts/text via local Ollama
+
+Usage:
+  echo "text" | caveman [compress|summarize|strip]
+  caveman -m summarize < file.txt
+  caveman -M qwen2.5-coder:1.5b-base < file.txt  # use fast model
+
+Modes:
+  compress   (default) Dense bullet facts, remove filler
+  summarize  Narrative paragraph summary
+  strip      Remove comments, boilerplate, whitespace
+
+Options:
+  -m MODE    Mode: compress | summarize | strip
+  -r RATIO   Target length ratio 0.1-0.9 (default: 0.35)
+  -M MODEL   Ollama model (default: qwen2.5-coder:14b)
+  -h         Help
+
+Environment:
+  CAVEMAN_MODEL   Override default model (e.g. export CAVEMAN_MODEL=qwen2.5-coder:1.5b-base)
+EOF
+  exit 0
+}
+
+while getopts "m:r:M:h" opt; do
+  case "$opt" in
+    m) MODE="$OPTARG" ;;
+    r) RATIO="$OPTARG" ;;
+    M) OLLAMA_MODEL="$OPTARG" ;;
+    h) usage ;;
+    *) usage ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+if [[ $# -gt 0 ]]; then
+  case "$1" in
+    compress|summarize|strip) MODE="$1"; shift ;;
+  esac
+fi
+
+INPUT="$(cat)"
+[[ -z "$INPUT" ]] && { echo "[caveman] No input." >&2; exit 1; }
+
+WORD_COUNT=$(echo "$INPUT" | wc -w | tr -d ' ')
+TARGET_WORDS=$(echo "$WORD_COUNT $RATIO" | awk '{printf "%d", $1 * $2}')
+[[ $TARGET_WORDS -lt 20 ]] && TARGET_WORDS=20
+
+# Robust check: use 'ollama show' which exits non-zero if model doesn't exist
+model_available() {
+  OLLAMA_NO_HISTORY=1 ollama show "$1" >/dev/null 2>&1
+}
+
+# Mechanical fallback: dedup + collapse whitespace (no LLM needed)
+mechanical_compress() {
+  echo "$INPUT" | awk '!seen[$0]++' | sed '/^[[:space:]]*$/d' | tr -s ' \t'
+}
+
+if ! OLLAMA_NO_HISTORY=1 ollama list >/dev/null 2>&1; then
+  echo "[caveman] Ollama unavailable — mechanical fallback." >&2
+  mechanical_compress
+  exit 0
+fi
+
+if ! model_available "$OLLAMA_MODEL"; then
+  echo "[caveman] Model '${OLLAMA_MODEL}' not found. Trying 1.5b-base..." >&2
+  OLLAMA_MODEL="qwen2.5-coder:1.5b-base"
+  if ! model_available "$OLLAMA_MODEL"; then
+    echo "[caveman] No usable model. Mechanical fallback." >&2
+    mechanical_compress
+    exit 0
+  fi
+fi
+
+case "$MODE" in
+  compress)
+    PROMPT="You are a text compressor. Compress the following to approximately ${TARGET_WORDS} words. Output only dense bullet points with key facts. No filler, no preamble, no explanations. Start immediately with the first bullet.
+
+INPUT:
+${INPUT}"
+    ;;
+  summarize)
+    PROMPT="Summarize the following in approximately ${TARGET_WORDS} words as one concise paragraph. Facts only, no filler.
+
+INPUT:
+${INPUT}"
+    ;;
+  strip)
+    PROMPT="Strip all comments, boilerplate, empty lines, and filler. Return only essential content, preserving structure.
+
+INPUT:
+${INPUT}"
+    ;;
+  *)
+    echo "[caveman] Unknown mode: ${MODE}" >&2; exit 1 ;;
+esac
+
+OLLAMA_NO_HISTORY=1 ollama run "$OLLAMA_MODEL" "$PROMPT" 2>/dev/null
